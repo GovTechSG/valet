@@ -17,7 +17,7 @@ logging
 Use http://crontab.guru/ to verify your crontab syntax
 
 E.g. `* 7-18 * * mon-fri`
-indicates a server uptime of 7am to 6pm on weekdays monday to friday
+indicates a server uptime of 7am to 6pm on weekdays (monday to friday)
 
 ### boto.config
 ```
@@ -27,7 +27,16 @@ aws_access_key_id=<aws_access_key_id>
 keyring=<my-keyring-name>
 ```
 
+Environment variable `BOTO_CONFIG` may be required for the boto to read the config
+
+```
+export BOTO_CONFIG=<the full path of the config file>
+```
+
+recommend to add into the ~/.bash_profile
+
 ### keyring
+
 ```
 python
 > import keyring
@@ -49,13 +58,11 @@ python ./valet.py --profiles profile1 profile2 --log /var/log/valet
 
 ## Latest Change Log
 - fixed a bug in parse_instances(...)
-- add keyring support
-
-## TODO
-- add support for multiple profiles
+- added keyring
+- replaced region with profiles, region is included in the boto.config now.
 
 ## And the credit goes to
-Cloudability Team for the original idea and script.
+The team from Cloudability for the original idea and source codes.
 
 *Reference*
 https://blog.cloudability.com/saved-64-devtest-instances-scheduling-uptime/
