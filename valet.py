@@ -1,15 +1,15 @@
 # Copyright (C) 2014 Cloudablity
-# 
-# Licensed under the Apache License, Version 2.0 (the "License"); 
-# you may not use this file except in compliance with the License. 
-# You may obtain a copy of the License at 
-# 
-#      http://www.apache.org/licenses/LICENSE-2.0 
-# 
-# Unless required by applicable law or agreed to in writing, software 
-# distributed under the License is distributed on an "AS IS" BASIS, 
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-# See the License for the specific language governing permissions and 
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
 # limitations under the License.
 
 from croniter import croniter
@@ -17,7 +17,8 @@ from datetime import datetime
 import argparse
 import boto.ec2
 import logging
- 
+import keyring
+
 logger = None
 
 # Use a time tolerance (epsilon) to allow some fuzzy matching to the schedule
@@ -114,7 +115,7 @@ def stop_instances(ec2, to_stop=None):
   else:
     logger.debug('Nothing to stop')
 
-def manage_instances(region):
+def manage_instances(region, id, key):
   """Manager instances findable by AWS API
 
   Args:
@@ -122,12 +123,14 @@ def manage_instances(region):
   """
   logging.debug("Checking %s" % region)
 
-  ec2 = boto.ec2.connect_to_region(region)
+  ec2 = boto.ec2.connect_to_region(region,
+    aws_access_key_id=id,
+    aws_secret_access_key=key)
 
   # AWS is case sensitive, so check for the common cases manually
   filters = { 'tag-key': ['Schedule', 'schedule'], 'instance-state-name': ['running', 'stopped'] }
   scheduled_instances = ec2.get_only_instances(filters=filters)
-  parsed_instances = parse_instances(ec2)
+  parsed_instances = parse_instances(scheduled_instances)
 
   base = datetime.now()
   base = base.replace(second=0, microsecond=0)
@@ -163,7 +166,7 @@ def main():
   parser.add_argument('--dry-run', help='Perform a dry run', action='store_true')
   parser.add_argument('--debug', help='Turn on debug logging', action='store_true')
   parser.add_argument('-l', '--log', help='Directory where logs should be placed')
-  parser.add_argument('-r', '--regions', nargs='*', help='Which regions to check', default=['us-east-1'])
+  parser.add_argument('-p', '--profiles', nargs='*', help='Which profile(s) to use', default=['Credentials'])
   args = parser.parse_args()
 
   if args.dry_run:
@@ -172,9 +175,11 @@ def main():
 
   setup_logging(log_path=args.log, debug=args.debug)
 
-  for region in args.regions:
-    manage_instances(region)
+  for profile in args.profiles:
+    region = boto.config.get(profile, 'region')
+    id = boto.config.get(profile, 'aws_access_key_id')
+    key = keyring.get_password('system', boto.config.get(profile, 'keyring'))
+    manage_instances(region, id, key)
 
 if __name__ == "__main__":
   main()
-
