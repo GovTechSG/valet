@@ -24,6 +24,7 @@ logger = None
 # Use a time tolerance (epsilon) to allow some fuzzy matching to the schedule
 TIME_EPSILON = 300 # 5 minutes
 DRY_RUN = False
+CHILD_INDENT = '  '
 
 class InstanceMeta:
   """InstanceMeta holds interesting metadata about an instance
@@ -64,7 +65,7 @@ def parse_instances(instances):
   Returns:
     A list of InstanceMeta objects
   """
-  logger.info("Checking %s instances" % len(instances))
+  logger.info("%s%s instances" % (CHILD_INDENT, len(instances)))
 
   schedules = []
 
@@ -115,17 +116,17 @@ def stop_instances(ec2, to_stop=None):
   else:
     logger.debug('Nothing to stop')
 
-def manage_instances(region, id, key):
+def manage_instances(profile):
   """Manager instances findable by AWS API
 
   Args:
-    region: list, regions to query for instances
+    profile
   """
-  logging.debug("Checking %s" % region)
+  logger.info("Checking %s, %s" % (profile['name'], profile['region']))
 
-  ec2 = boto.ec2.connect_to_region(region,
-    aws_access_key_id=id,
-    aws_secret_access_key=key)
+  ec2 = boto.ec2.connect_to_region(profile['region'],
+    aws_access_key_id=profile['id'],
+    aws_secret_access_key=profile['key'])
 
   # AWS is case sensitive, so check for the common cases manually
   filters = { 'tag-key': ['Schedule', 'schedule'], 'instance-state-name': ['running', 'stopped'] }
@@ -139,24 +140,35 @@ def manage_instances(region, id, key):
   to_stop  = []
 
   for instance in parsed_instances:
-    should_be_running = False
+    try:
+      ignore = False
+      should_be_running = False
 
-    for cron_schedule in instance.cron_schedules:
-      logger.debug("Checking schedule: %s" % cron_schedule)
-      next_run = croniter(cron_schedule, base).get_next(datetime)
-      logger.debug("Next run: %s" % next_run)
+      for cron_schedule in instance.cron_schedules:
+        cron_schedule = cron_schedule.strip()
+        if bool(cron_schedule):
+          logger.debug("%sChecking schedule: %s" % (CHILD_INDENT, cron_schedule))
+          next_run = croniter(cron_schedule, base).get_next(datetime)
+          logger.debug("%sNext run: %s" % (CHILD_INDENT, next_run))
 
-      gap = (next_run - base).total_seconds()
-      if gap < TIME_EPSILON:
-        should_be_running = True
-        logger.debug("%s (%s) - Fire it up!" % (instance.name, instance.instance_id))
-
-    if should_be_running:
-      if instance.state == 'stopped':
-        to_start.append(instance.instance_id)
-    elif instance.state == 'running':
-      to_stop.append(instance.instance_id)
-      logger.debug("%s (%s)  - That's all folks!" % (instance.name, instance.instance_id))
+          gap = (next_run - base).total_seconds()
+          if gap < TIME_EPSILON:
+            should_be_running = True
+            logger.debug("%s%s (%s) - Fire it up!" % (
+              CHILD_INDENT, instance.name, instance.instance_id))
+        else:
+          ignore = True
+      
+      if not ignore:
+        if should_be_running:
+          if instance.state == 'stopped':
+            to_start.append(instance.instance_id)
+        elif instance.state == 'running':
+          to_stop.append(instance.instance_id)
+          logger.debug("%s%s (%s)  - That's all folks!" % (
+            CHILD_INDENT, instance.name, instance.instance_id))
+    except Exception as e:
+      logger.error("%s%s" % (CHILD_INDENT, e))
 
   start_instances(ec2, to_start)
   stop_instances(ec2, to_stop)
@@ -175,11 +187,11 @@ def main():
 
   setup_logging(log_path=args.log, debug=args.debug)
 
-  for profile in args.profiles:
-    region = boto.config.get(profile, 'region')
-    id = boto.config.get(profile, 'aws_access_key_id')
-    key = keyring.get_password('system', boto.config.get(profile, 'keyring'))
-    manage_instances(region, id, key)
+  for p in args.profiles:
+    region = boto.config.get(p, 'region')
+    id = boto.config.get(p, 'aws_access_key_id')
+    key = keyring.get_password('system', boto.config.get(p, 'keyring'))
+    manage_instances({ 'name': p, 'region': region, 'id': id, 'key': key })
 
 if __name__ == "__main__":
   main()
