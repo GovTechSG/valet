@@ -22,18 +22,20 @@ indicates a server uptime of 7am to 6pm on weekdays (monday to friday)
 ### boto.config
 ```
 [<profile name>]
-region=
+region=<region>
 aws_access_key_id=<aws_access_key_id>
 keyring=<my-keyring-name>
 ```
 
-Environment variable `BOTO_CONFIG` may be required for the boto to read the config
+Environment variable `BOTO_CONFIG` may be required for boto to read the config
 
 ```
+# recommend to add into the ~/.bash_profile
 export BOTO_CONFIG=<the full path of the config file>
 ```
 
-recommend to add into the ~/.bash_profile
+Note: use additional profile for multiple region
+
 
 ### keyring
 
@@ -45,7 +47,7 @@ python
 
 ## Examples
 ```
-python ./valet.py --profiles profile_name --log /var/log/valet
+python ./valet.py --profiles profile1 --log /var/log/valet
 
 # for multiple profiles
 python ./valet.py --profiles profile1 profile2 --log /var/log/valet
@@ -58,8 +60,11 @@ python ./valet.py --profiles profile1 profile2 --log /var/log/valet
 
 ## Latest Change Log
 - fixed a bug in parse_instances(...)
+- fixed a bug which cause error when the schedule tag is modified and then left empty, and added extra step to ignore it
 - added keyring
 - replaced region with profiles, region is included in the boto.config now.
+- update logging for more details
+ 
 
 ## And the credit goes to
 The team from Cloudability for the original idea and source codes.
