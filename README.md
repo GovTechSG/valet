@@ -43,19 +43,79 @@ Note: use additional profile for multiple region
 python
 > import keyring
 > keyring.set_password('system', <my-keyring-name>, <aws_secret_access_key>)
+> 
+# to view the password
+> keyring.get_password('system', <my-keyring-name>)
+
+# to delete the password
+> keyring.delete_password('system', <my-keyring-name>)
 ```
 
-## Examples
+### Execution
 ```
-python ./valet.py --profiles profile1 --log /var/log/valet
-
-# for multiple profiles
-python ./valet.py --profiles profile1 profile2 --log /var/log/valet
+# for single or multiple profiles
+python ./valet.py --profiles <list of profiles> --log /var/log/valet
 
 --dry-run: Perform a dry run
 --debug: Turn on debug logging
 -l, --log: Directory where logs should be placed
 -p, --profiles: Which profile(s) to check, default 'Credentials'
+```
+
+## Examples
+cat boto.config
+
+```
+[profile1]
+region=ap-southeast-1
+aws_access_key_id=profile1accesskey
+keyring=xyzxyz
+
+[profile2]
+region=app-us-east-1
+aws_access_key_id=profile2accesskey
+keyring=blahblahblah
+```
+
+keyring
+
+```
+keyring.set_password('system', 'xyzxyz', 'profile1secretkey')
+keyring.set_password('system', 'blahblahblah', 'profile2secretkey')
+```
+
+script
+
+```
+python ./valet.py --profiles profile1 --log /var/log/valet
+
+# or for multiple profiles
+python ./valet.py --profiles profile1 profile2 --log /var/log/valet
+```
+
+## AWS Policy/ Permission
+
+The following customized policy should be sufficient
+
+```
+{
+   "Version": "2012-10-17",
+   "Statement": [{
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances", 
+        "ec2:DescribeImages",
+        "ec2:DescribeKeyPairs", 
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:RunInstances",
+        "ec2:StopInstances", 
+        "ec2:StartInstances"
+      ],
+      "Resource": "*"
+    }
+   ]
+}
 ```
 
 ## Latest Change Log
