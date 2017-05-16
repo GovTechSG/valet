@@ -190,7 +190,11 @@ def main():
   for p in args.profiles:
     region = boto.config.get(p, 'region')
     id = boto.config.get(p, 'aws_access_key_id')
-    key = keyring.get_password('system', boto.config.get(p, 'keyring'))
+
+    if boto.config.get(p, 'aws_secret_access_key') is not None:
+      key = boto.config.get(p, 'aws_secret_access_key')
+    else:
+      key = keyring.get_password('system', boto.config.get(p, 'keyring'))
     manage_instances({ 'name': p, 'region': region, 'id': id, 'key': key })
 
 if __name__ == "__main__":
